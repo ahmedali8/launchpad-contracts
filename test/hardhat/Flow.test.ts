@@ -15,7 +15,7 @@ import {
   Source__factory,
   Token,
   Token__factory,
-} from "../../types";
+} from "../../typechain-types";
 
 describe("Flow", function () {
   // Constant representing a mock Endpoint ID for testing purposes

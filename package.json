@@ -10,7 +10,7 @@
   },
   "scripts": {
     "chain": "hardhat node --no-deploy --export-all ./generated/chain.json --network hardhat",
-    "clean": "shx rm -rf ./artifacts ./cache ./out ./coverage ./coverage.json ./types",
+    "clean": "shx rm -rf ./artifacts ./cache ./out ./coverage ./coverage.json ./typechain-types",
     "compile": "yarn run compile:forge && yarn run compile:hardhat",
     "compile:forge": "forge build",
     "compile:hardhat": "cross-env TS_NODE_TRANSPILE_ONLY=true hardhat compile",
@@ -19,7 +19,7 @@
     "deploy:hardhat-deploy": "hardhat deploy --export-all ./deployments/hardhat_contracts.json",
     "deploy:network": "yarn deploy:hardhat-deploy --network",
     "fork": "hardhat node --network hardhat --fork",
-    "//postinstall": "DOTENV_CONFIG_PATH=./.env.example yarn typechain",
+    "postinstall": "DOTENV_CONFIG_PATH=./.env.example yarn typechain",
     "lint": "yarn lint:sol && yarn lint:ts && yarn prettier:check",
     "lint:fix": "eslint --fix \"**/*.{js,ts}\" && yarn prettier:write && yarn lint:sol --fix --noPrompt",
     "lint:sol": "forge fmt --check && yarn solhint \"{script,contracts,test}/**/*.sol\"",

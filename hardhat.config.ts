@@ -134,7 +134,7 @@ const config: HardhatUserConfig = {
     ],
   },
   typechain: {
-    outDir: "types",
+    outDir: "typechain-types",
     target: "ethers-v5",
     // externalArtifacts: [
     // "node_modules/@layerzerolabs/oapp-evm/artifacts/OAppOptionsType3.sol/OAppOptionsType3.json",
