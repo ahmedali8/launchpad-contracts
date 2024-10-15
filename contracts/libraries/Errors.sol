@@ -3,6 +3,19 @@
 pragma solidity ^0.8.22;
 
 library Errors {
+    error LaunchpadV3_UserAlreadyOptedIn();
+
+    error LaunchpadV3_UserNotOptedIn();
+
+    /// @notice Error when the amount is 0.
+    error LaunchpadV3_Escrow_InvalidAmount();
+
+    error LaunchpadV3_Escrow_InsufficientUSDCBalance();
+
+    error LaunchpadV3_Escrow_InsufficientDynUSDCBalance();
+
+    error LaunchpadV3_Escrow_UserCannotWithdraw();
+
     /// @notice TimelineInfo Struct: Error for when the project start time is not in the future.
     /// @param currentTimestamp The current block timestamp.
     /// @param startTime The project start time.
