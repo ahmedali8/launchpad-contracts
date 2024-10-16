@@ -3,9 +3,13 @@
 pragma solidity ^0.8.22;
 
 library Errors {
+    error LaunchpadV3_EscrowAlreadyInitialized();
+
     error LaunchpadV3_UserAlreadyOptedIn();
 
     error LaunchpadV3_UserNotOptedIn();
+
+    error LaunchpadV3_AddressLibrary_InvalidAddress();
 
     /// @notice Error when the amount is 0.
     error LaunchpadV3_Escrow_InvalidAmount();
