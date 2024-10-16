@@ -2,6 +2,8 @@
 
 pragma solidity ^0.8.22;
 
+/// @title TEscrow
+/// @notice Library to manage the user struct for the Escrow contract.
 library TEscrow {
     /// @notice Enum representing whether the user has opted into a yield-bearing vault (Dynavault).
     /// @dev Tracks the opt-in status for yield accumulation.
