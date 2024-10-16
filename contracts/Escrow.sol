@@ -8,19 +8,23 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 // libraries
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import { Errors } from "./libraries/Errors.sol";
+import { AddressLibrary } from "./libraries/AddressLibrary.sol";
 
 // types
 import { TEscrow } from "./types/TEscrow.sol";
 
-// contracts
-import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+// abstract contracts
+import { Clonable } from "./utilities/Clonable.sol";
 
-contract Escrow is Ownable {
+// TODO: implement IEscrow
+contract Escrow is Clonable, ReentrancyGuard {
     using SafeERC20 for IERC20;
+    using AddressLibrary for address;
 
     /// @notice USDC token address
-    IERC20 public immutable usdc;
+    IERC20 public usdc;
 
     /// @notice Dynavault address
     IERC4626 public vault;
@@ -38,20 +42,22 @@ contract Escrow is Ownable {
     /// @notice Event emitted when a user opts out of Dynavault.
     event OptOut(address indexed user, uint256 dynUSDCAmount, uint256 usdcAmount);
 
-    /// @notice Event emitted when a user withdraws their yield.
-    event YieldWithdrawn(address indexed user, uint256 yieldAmount);
-
     /// @notice Event emitted when a user withdraws USDC.
     event Withdraw(address indexed user, uint256 amount);
 
-    constructor(address owner_, IERC20 usdc_, IERC4626 _vault_) Ownable(owner_) {
-        usdc = usdc_;
-        vault = _vault_;
-    }
+    function initializer(IERC20 usdcAddress, IERC4626 vaultAddress) external {
+        // Check: Ensure the contract is not already initialized
+        if (!address(usdc).isAddressZero() || !address(vault).isAddressZero()) {
+            revert Errors.LaunchpadV3_EscrowAlreadyInitialized();
+        }
 
-    // Allows user to participate in the project and interact with `ProjectAllocationManager` contract
-    // TODO: implementation
-    function participate() external { }
+        // Check: Ensure the USDC and Dynavault addresses are not zero
+        address(usdcAddress).checkAddressZero();
+        address(vaultAddress).checkAddressZero();
+
+        usdc = usdcAddress;
+        vault = vaultAddress;
+    }
 
     /// @notice Allows users to add USDC into the escrow contract.
     /// @param amount The amount of USDC to deposit.
@@ -70,20 +76,15 @@ contract Escrow is Ownable {
 
     /// @notice Allows users to withdraw their USDC (including yield) from the escrow contract.
     /// @dev If the user is opted in, their DynUSDC will be converted back to USDC.
-    function withdraw(uint256 usdcAmount) external {
+    function withdraw(uint256 usdcAmount) external nonReentrant {
         TEscrow.UserInfo memory _user = userInfo[_msgSender()];
-
-        // If the user has participated to the project, they cannot withdraw their USDC
-        // TODO: send a call to the `ProjectAllocationManager` contract to check if the project has started the sale
-        // then the user cannot withdraw
-        if (_user.hasParticipated) revert Errors.LaunchpadV3_Escrow_UserCannotWithdraw();
 
         // If user is opted in, convert DynUSDC to USDC
         if (_user.optStatus == TEscrow.OptStatus.OptIn) {
             if (_user.dynUSDCBalance == 0) revert Errors.LaunchpadV3_Escrow_InsufficientDynUSDCBalance();
 
             // Redeem DynUSDC from the vault and convert back to USDC
-            usdcAmount = vault.withdraw(usdcAmount, address(this), address(this));
+            usdcAmount = vault.withdraw({ assets: usdcAmount, receiver: address(this), owner: address(this) });
             _user.dynUSDCBalance = 0;
             _user.optStatus = TEscrow.OptStatus.OptOut;
         }
@@ -102,7 +103,7 @@ contract Escrow is Ownable {
     }
 
     /// @notice Allows users to opt-in to Dynavault and convert their USDC to DynUSDC.
-    function optIn() external {
+    function optIn() external nonReentrant {
         TEscrow.UserInfo memory _user = userInfo[_msgSender()];
 
         // Check: Ensure the user has USDC to convert
@@ -128,7 +129,7 @@ contract Escrow is Ownable {
     }
 
     /// @notice Allows users to opt out of Dynavault and convert DynUSDC back to USDC.
-    function optOut() external {
+    function optOut() external nonReentrant {
         TEscrow.UserInfo memory _user = userInfo[_msgSender()];
 
         // Check: Ensure the user is opted in
