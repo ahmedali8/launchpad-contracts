@@ -47,7 +47,7 @@ contract Escrow is Clonable, ReentrancyGuard, IEscrow {
     function initializer(address usdcAddress, address vaultAddress) external override {
         // Check: Ensure the contract is not already initialized
         if (!address(usdc).isAddressZero() || !address(vault).isAddressZero()) {
-            revert Errors.LaunchpadV3_EscrowAlreadyInitialized();
+            revert Errors.LaunchpadV3_Escrow_AlreadyInitialized();
         }
 
         // Check: Ensure the USDC and Dynavault addresses are not zero

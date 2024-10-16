@@ -2,23 +2,46 @@
 
 pragma solidity ^0.8.22;
 
+/// @title Errors
+/// @notice Library to manage error messages for the LaunchpadV3 contracts.
 library Errors {
-    error LaunchpadV3_EscrowAlreadyInitialized();
+    /*//////////////////////////////////////////////////////////////
+                                GENERICS
+    //////////////////////////////////////////////////////////////*/
 
+    /// @notice Error when the user has already opted in.
     error LaunchpadV3_UserAlreadyOptedIn();
 
+    /// @notice Error when the user has not opted in.
     error LaunchpadV3_UserNotOptedIn();
 
+    /*//////////////////////////////////////////////////////////////
+                            ADDRESS LIBRARY 
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Error when the address is zero address.
     error LaunchpadV3_AddressLibrary_InvalidAddress();
+
+    /*//////////////////////////////////////////////////////////////
+                            ESCROW CONTRACT
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Error when the escrow contract is already initialized.
+    error LaunchpadV3_Escrow_AlreadyInitialized();
 
     /// @notice Error when the amount is 0.
     error LaunchpadV3_Escrow_InvalidAmount();
 
+    /// @notice Error when the user has insufficient USDC balance.
     error LaunchpadV3_Escrow_InsufficientUSDCBalance();
 
+    /// @notice Error when the user has insufficient DynUSDC balance.
     error LaunchpadV3_Escrow_InsufficientDynUSDCBalance();
 
+    /// @notice Error when the user cannot withdraw.
     error LaunchpadV3_Escrow_UserCannotWithdraw();
+
+    // TODO: following will be updated with the design change
 
     /// @notice TimelineInfo Struct: Error for when the project start time is not in the future.
     /// @param currentTimestamp The current block timestamp.
