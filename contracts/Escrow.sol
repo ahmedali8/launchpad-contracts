@@ -5,6 +5,7 @@ pragma solidity ^0.8.22;
 // interfaces
 import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IEscrow } from "./interfaces/IEscrow.sol";
 
 // libraries
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -18,10 +19,15 @@ import { TEscrow } from "./types/TEscrow.sol";
 // abstract contracts
 import { Clonable } from "./utilities/Clonable.sol";
 
-// TODO: implement IEscrow
-contract Escrow is Clonable, ReentrancyGuard {
+/// @title Escrow Contract
+/// @dev A contract that allows users to deposit USDC and earn yield if opted-in to a yield-bearing vault.
+contract Escrow is Clonable, ReentrancyGuard, IEscrow {
     using SafeERC20 for IERC20;
     using AddressLibrary for address;
+
+    /*//////////////////////////////////////////////////////////////
+                            STATE VARIABLES
+    //////////////////////////////////////////////////////////////*/
 
     /// @notice USDC token address
     IERC20 public usdc;
@@ -33,35 +39,27 @@ contract Escrow is Clonable, ReentrancyGuard {
     /// @dev Maps each user address to their corresponding `UserInfo` struct.
     mapping(address => TEscrow.UserInfo) public userInfo;
 
-    /// @notice Event emitted when a user deposits USDC.
-    event Deposit(address indexed user, uint256 amount);
+    /*//////////////////////////////////////////////////////////////
+                         NON-CONSTANT FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
 
-    /// @notice Event emitted when a user opts in to Dynavault.
-    event OptIn(address indexed user, uint256 usdcAmount, uint256 dynUSDCAmount);
-
-    /// @notice Event emitted when a user opts out of Dynavault.
-    event OptOut(address indexed user, uint256 dynUSDCAmount, uint256 usdcAmount);
-
-    /// @notice Event emitted when a user withdraws USDC.
-    event Withdraw(address indexed user, uint256 amount);
-
-    function initializer(IERC20 usdcAddress, IERC4626 vaultAddress) external {
+    /// @inheritdoc IEscrow
+    function initializer(address usdcAddress, address vaultAddress) external override {
         // Check: Ensure the contract is not already initialized
         if (!address(usdc).isAddressZero() || !address(vault).isAddressZero()) {
             revert Errors.LaunchpadV3_EscrowAlreadyInitialized();
         }
 
         // Check: Ensure the USDC and Dynavault addresses are not zero
-        address(usdcAddress).checkAddressZero();
-        address(vaultAddress).checkAddressZero();
+        usdcAddress.checkAddressZero();
+        vaultAddress.checkAddressZero();
 
-        usdc = usdcAddress;
-        vault = vaultAddress;
+        usdc = IERC20(usdcAddress);
+        vault = IERC4626(vaultAddress);
     }
 
-    /// @notice Allows users to add USDC into the escrow contract.
-    /// @param amount The amount of USDC to deposit.
-    function deposit(uint256 amount) external {
+    /// @inheritdoc IEscrow
+    function deposit(uint256 amount) external override {
         if (amount == 0) revert Errors.LaunchpadV3_Escrow_InvalidAmount();
 
         // Transfer USDC from user to this contract
@@ -74,9 +72,8 @@ contract Escrow is Clonable, ReentrancyGuard {
         emit Deposit(_msgSender(), amount);
     }
 
-    /// @notice Allows users to withdraw their USDC (including yield) from the escrow contract.
-    /// @dev If the user is opted in, their DynUSDC will be converted back to USDC.
-    function withdraw(uint256 usdcAmount) external nonReentrant {
+    /// @inheritdoc IEscrow
+    function withdraw(uint256 usdcAmount) external override nonReentrant {
         TEscrow.UserInfo memory _user = userInfo[_msgSender()];
 
         // If user is opted in, convert DynUSDC to USDC
@@ -102,8 +99,8 @@ contract Escrow is Clonable, ReentrancyGuard {
         emit Withdraw(_msgSender(), usdcAmount);
     }
 
-    /// @notice Allows users to opt-in to Dynavault and convert their USDC to DynUSDC.
-    function optIn() external nonReentrant {
+    /// @inheritdoc IEscrow
+    function optIn() external override nonReentrant {
         TEscrow.UserInfo memory _user = userInfo[_msgSender()];
 
         // Check: Ensure the user has USDC to convert
@@ -128,8 +125,8 @@ contract Escrow is Clonable, ReentrancyGuard {
         emit OptIn(_msgSender(), _user.usdcBalance, _dynUSDCAmount);
     }
 
-    /// @notice Allows users to opt out of Dynavault and convert DynUSDC back to USDC.
-    function optOut() external nonReentrant {
+    /// @inheritdoc IEscrow
+    function optOut() external override nonReentrant {
         TEscrow.UserInfo memory _user = userInfo[_msgSender()];
 
         // Check: Ensure the user is opted in
@@ -150,5 +147,25 @@ contract Escrow is Clonable, ReentrancyGuard {
 
         // Emit opt-out event
         emit OptOut(_msgSender(), _user.dynUSDCBalance, _usdcAmount);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                   ONLY-ADMIN NON-CONSTANT FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Sets a new vault address.
+    /// @dev Can only be called by the admin.
+    /// @dev Reverts if the new vault address is zero address.
+    /// @dev Emits a `VaultUpdated` event.
+    /// @param newVaultAddress The address of the new vault.
+    function setVault(address newVaultAddress) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        // Check: Ensure the new vault address is not zero
+        newVaultAddress.checkAddressZero();
+
+        // Emit vault update event
+        emit VaultUpdated(address(vault), newVaultAddress);
+
+        // Update the vault address
+        vault = IERC4626(newVaultAddress);
     }
 }
