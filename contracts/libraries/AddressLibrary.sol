@@ -11,13 +11,13 @@ library AddressLibrary {
     /// @notice Checks if the address is zero.
     /// @param addr The address to check.
     /// @return True if the address is zero, false otherwise.
-    function isAddressZero(address addr) internal pure returns (bool) {
+    function isAddressZero(address addr) public pure returns (bool) {
         return addr == address(0);
     }
 
     /// @notice Checks the address is not zero address and reverts if it is.
     /// @param addr The address to check.
-    function checkAddressZero(address addr) internal pure {
+    function checkAddressZero(address addr) public pure {
         if (isAddressZero(addr)) {
             revert Errors.LaunchpadV3_AddressLibrary_InvalidAddress();
         }
