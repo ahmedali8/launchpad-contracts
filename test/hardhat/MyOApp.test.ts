@@ -4,7 +4,7 @@ import { expect } from "chai";
 import { Contract, ContractFactory } from "ethers";
 import { deployments, ethers } from "hardhat";
 
-describe("MyOApp Test", function () {
+export default function () {
   // Constant representing a mock Endpoint ID for testing purposes
   const eidA = 1;
   const eidB = 2;
@@ -79,4 +79,4 @@ describe("MyOApp Test", function () {
     expect(await myOAppA.data()).to.equal("Nothing received yet.");
     expect(await myOAppB.data()).to.equal("Test message.");
   });
-});
+}

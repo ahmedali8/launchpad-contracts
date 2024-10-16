@@ -17,7 +17,7 @@ import {
   Token__factory,
 } from "../../typechain-types";
 
-describe("Flow", function () {
+export default function () {
   // Constant representing a mock Endpoint ID for testing purposes
   const eidSource = 1;
   const eidDestination = 2;
@@ -235,4 +235,4 @@ describe("Flow", function () {
     const accountingAfterResolution = await source.accounting(addr1.address);
     expect(accountingAfterResolution.toString()).to.equal("0");
   });
-});
+}
