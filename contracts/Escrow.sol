@@ -103,11 +103,11 @@ contract Escrow is Clonable, ReentrancyGuard, IEscrow {
     function optIn() external override nonReentrant {
         TEscrow.UserInfo memory _user = userInfo[_msgSender()];
 
-        // Check: Ensure the user has USDC to convert
-        if (_user.usdcBalance == 0) revert Errors.LaunchpadV3_Escrow_InsufficientUSDCBalance();
-
         // Check: If the user is already opted-in
         if (_user.optStatus == TEscrow.OptStatus.OptIn) revert Errors.LaunchpadV3_UserAlreadyOptedIn();
+
+        // Check: Ensure the user has USDC to convert
+        if (_user.usdcBalance == 0) revert Errors.LaunchpadV3_Escrow_InsufficientUSDCBalance();
 
         // Approve Dynavault to spend the user's USDC
         usdc.approve(address(vault), _user.usdcBalance);
@@ -132,8 +132,8 @@ contract Escrow is Clonable, ReentrancyGuard, IEscrow {
         // Check: Ensure the user is opted in
         if (_user.optStatus != TEscrow.OptStatus.OptIn) revert Errors.LaunchpadV3_UserNotOptedIn();
 
-        // Check: Ensure the user has DynUSDC to convert back to USDC
-        if (_user.dynUSDCBalance == 0) revert Errors.LaunchpadV3_Escrow_InsufficientDynUSDCBalance();
+        // Assert Invariant: The DynUSDC balance of user cannot be zero when opted-in.
+        assert(_user.dynUSDCBalance > 0);
 
         // Convert DynUSDC (shares) back to USDC (assets)
         uint256 _usdcAmount =
