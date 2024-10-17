@@ -153,4 +153,19 @@ export default function testEscrow() {
     expect(aliceUserInfo.dynUSDCBalance).to.equal(0);
     expect(aliceUserInfo.optStatus).to.equal(OptStatus.OptOut);
   });
+
+  it("should allow a user to withdraw USDC when opted out by default", async function () {
+    const depositAmount = parseUsdc("100");
+    await usdc.mint(alice.address, depositAmount);
+    await usdc.connect(alice).approve(escrow.address, depositAmount);
+    await escrow.connect(alice).deposit(depositAmount);
+
+    await expect(escrow.connect(alice).withdraw(depositAmount))
+      .to.emit(escrow, "Withdraw")
+      .withArgs(alice.address, depositAmount);
+    const aliceUserInfo = await escrow.userInfo(alice.address);
+    expect(aliceUserInfo.usdcBalance).to.equal(0);
+    expect(aliceUserInfo.dynUSDCBalance).to.equal(0);
+    expect(aliceUserInfo.optStatus).to.equal(OptStatus.OptOut);
+  });
 }

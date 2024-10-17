@@ -92,6 +92,11 @@ contract Escrow is Clonable, ReentrancyGuard, IEscrow {
             revert Errors.LaunchpadV3_Escrow_InsufficientUSDCBalance();
         }
 
+        _user.usdcBalance -= usdcAmount;
+
+        // Update user info to storage
+        userInfo[_msgSender()] = _user;
+
         // Transfer USDC to user
         usdc.safeTransfer(_msgSender(), usdcAmount);
 
