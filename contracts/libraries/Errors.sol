@@ -41,6 +41,9 @@ library Errors {
     /// @notice Error when the user cannot withdraw.
     error LaunchpadV3_Escrow_UserCannotWithdraw();
 
+    /// @notice Error when the user receives insufficient DynUSDC amount after deposit to vault.
+    error LaunchpadV3_Escrow_InsufficientDynUSDCAmountReceived();
+
     // TODO: following will be updated with the design change
 
     /// @notice TimelineInfo Struct: Error for when the project start time is not in the future.

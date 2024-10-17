@@ -168,4 +168,31 @@ export default function testEscrow() {
     expect(aliceUserInfo.dynUSDCBalance).to.equal(0);
     expect(aliceUserInfo.optStatus).to.equal(OptStatus.OptOut);
   });
+
+  it("should allow a user to withdraw USDC when opted in", async function () {
+    const depositAmount = parseUsdc("100");
+    await usdc.mint(alice.address, depositAmount);
+    await usdc.connect(alice).approve(escrow.address, depositAmount);
+    await escrow.connect(alice).deposit(depositAmount);
+
+    const aliceUserInfoAfterDeposit = await escrow.userInfo(alice.address);
+    expect(aliceUserInfoAfterDeposit.usdcBalance).to.equal(depositAmount);
+    expect(aliceUserInfoAfterDeposit.dynUSDCBalance).to.equal(0);
+    expect(aliceUserInfoAfterDeposit.optStatus).to.equal(OptStatus.OptOut);
+
+    await escrow.connect(alice).optIn(); // The current ration is 1:1
+
+    const aliceUserInfoAfterOptIn = await escrow.userInfo(alice.address);
+    expect(aliceUserInfoAfterOptIn.usdcBalance).to.equal(0);
+    expect(aliceUserInfoAfterOptIn.dynUSDCBalance).to.equal(depositAmount);
+    expect(aliceUserInfoAfterOptIn.optStatus).to.equal(OptStatus.OptIn);
+
+    await expect(escrow.connect(alice).withdraw(depositAmount))
+      .to.emit(escrow, "Withdraw")
+      .withArgs(alice.address, depositAmount);
+    const aliceUserInfoAfterWithdraw = await escrow.userInfo(alice.address);
+    expect(aliceUserInfoAfterWithdraw.usdcBalance).to.equal(0);
+    expect(aliceUserInfoAfterWithdraw.dynUSDCBalance).to.equal(0);
+    expect(aliceUserInfoAfterWithdraw.optStatus).to.equal(OptStatus.OptOut);
+  });
 }

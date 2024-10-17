@@ -10,6 +10,7 @@ export enum Errors {
   LaunchpadV3_Escrow_InsufficientUSDCBalance = "LaunchpadV3_Escrow_InsufficientUSDCBalance",
   LaunchpadV3_Escrow_InsufficientDynUSDCBalance = "LaunchpadV3_Escrow_InsufficientDynUSDCBalance",
   LaunchpadV3_Escrow_UserCannotWithdraw = "LaunchpadV3_Escrow_UserCannotWithdraw",
+  LaunchpadV3_Escrow_InsufficientDynUSDCAmountReceived = "LaunchpadV3_Escrow_InsufficientDynUSDCAmountReceived",
   // AccessControl
   AccessControlUnauthorizedAccount = "AccessControlUnauthorizedAccount", // AccessControlUnauthorizedAccount(address,bytes32);
 }
