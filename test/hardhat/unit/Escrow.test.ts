@@ -40,7 +40,7 @@ export default function testEscrow() {
     addressLibrary = contracts.addressLibrary;
   });
 
-  /// Bad Paths (Error Handling) ///
+  /// Initialization ///
 
   it("should revert when initializing the contract more than once", async function () {
     await expect(escrow.initializer(usdc.address, vault.address)).to.be.revertedWithCustomError(
@@ -49,12 +49,30 @@ export default function testEscrow() {
     );
   });
 
+  /// Depositing Funds ///
+
   it("should revert when depositing zero USDC", async function () {
     await expect(escrow.connect(alice).deposit(0)).to.be.revertedWithCustomError(
       escrow,
       Errors.LaunchpadV3_Escrow_InvalidAmount
     );
   });
+
+  it("should allow a user to deposit USDC", async function () {
+    const depositAmount = parseUsdc("100");
+    await mintAndApproveUSDC(usdc, alice, escrow.address, depositAmount);
+    await expect(escrow.connect(alice).deposit(depositAmount))
+      .to.emit(escrow, "Deposit")
+      .withArgs(alice.address, depositAmount);
+
+    expect(await usdc.balanceOf(escrow.address)).to.equal(depositAmount);
+    const aliceUserInfo = await escrow.userInfo(alice.address);
+    expect(aliceUserInfo.usdcBalance).to.equal(depositAmount);
+    expect(aliceUserInfo.dynUSDCBalance).to.equal(0);
+    expect(aliceUserInfo.optStatus).to.equal(OptStatus.OptOut);
+  });
+
+  /// Withdrawing Funds (Without Opt-In) ///
 
   it("should revert when withdrawing more USDC than balance", async function () {
     const depositAmount = parseUsdc("100");
@@ -68,14 +86,31 @@ export default function testEscrow() {
     );
   });
 
-  it("should revert when opting in with zero USDC", async function () {
+  it("should allow a user to withdraw USDC when opted-out by default", async function () {
+    const depositAmount = parseUsdc("100");
+    await mintAndApproveUSDC(usdc, alice, escrow.address, depositAmount);
+    await escrow.connect(alice).deposit(depositAmount);
+
+    await expect(escrow.connect(alice).withdraw(depositAmount))
+      .to.emit(escrow, "Withdraw")
+      .withArgs(alice.address, depositAmount);
+
+    const aliceUserInfo = await escrow.userInfo(alice.address);
+    expect(aliceUserInfo.usdcBalance).to.equal(0);
+    expect(aliceUserInfo.dynUSDCBalance).to.equal(0);
+    expect(aliceUserInfo.optStatus).to.equal(OptStatus.OptOut);
+  });
+
+  /// Opting Into the Vault ///
+
+  it("should revert when opting-in with zero USDC", async function () {
     await expect(escrow.connect(alice).optIn()).to.be.revertedWithCustomError(
       escrow,
       Errors.LaunchpadV3_Escrow_InsufficientUSDCBalance
     );
   });
 
-  it("should revert when opting in if already opted in", async function () {
+  it("should revert when opting in if already opted-in", async function () {
     const depositAmount = parseUsdc("100");
     await mintAndApproveUSDC(usdc, alice, escrow.address, depositAmount);
     await escrow.connect(alice).deposit(depositAmount);
@@ -87,12 +122,19 @@ export default function testEscrow() {
     );
   });
 
-  it("should revert when opting out if not opted in", async function () {
-    await expect(escrow.connect(alice).optOut()).to.be.revertedWithCustomError(
-      escrow,
-      Errors.LaunchpadV3_UserNotOptedIn
-    );
+  it("should allow a user to opt-in to Dynavault", async function () {
+    const depositAmount = parseUsdc("100");
+    await mintAndApproveUSDC(usdc, alice, escrow.address, depositAmount);
+    await escrow.connect(alice).deposit(depositAmount);
+
+    const expectedUSDCBalance = 0;
+    const expectedDynUSDCBalance = depositAmount;
+    await expect(escrow.connect(alice).optIn())
+      .to.emit(escrow, "OptIn")
+      .withArgs(alice.address, expectedUSDCBalance, expectedDynUSDCBalance);
   });
+
+  /// Withdrawing Funds (With Opt-In) ///
 
   it("should revert when opting out with zero DynUSDC balance when opted out", async function () {
     const depositAmount = parseUsdc("100");
@@ -116,52 +158,7 @@ export default function testEscrow() {
     assert(aliceUserInfo.dynUSDCBalance.gt(0));
   });
 
-  it("should revert when non-admin tries to update the vault", async function () {
-    await expect(escrow.connect(alice).setVault(vault.address)).to.be.revertedWithCustomError(
-      escrow,
-      Errors.AccessControlUnauthorizedAccount
-    );
-  });
-
-  it("should revert when admin tries to set a zero vault address", async function () {
-    await expect(escrow.connect(deployer).setVault(ethers.constants.AddressZero)).to.be.revertedWithCustomError(
-      addressLibrary,
-      Errors.LaunchpadV3_AddressLibrary_InvalidAddress
-    );
-  });
-
-  /// Happy Paths (Expected Behavior) ///
-
-  it("should allow a user to deposit USDC", async function () {
-    const depositAmount = parseUsdc("100");
-    await mintAndApproveUSDC(usdc, alice, escrow.address, depositAmount);
-    await expect(escrow.connect(alice).deposit(depositAmount))
-      .to.emit(escrow, "Deposit")
-      .withArgs(alice.address, depositAmount);
-
-    expect(await usdc.balanceOf(escrow.address)).to.equal(depositAmount);
-    const aliceUserInfo = await escrow.userInfo(alice.address);
-    expect(aliceUserInfo.usdcBalance).to.equal(depositAmount);
-    expect(aliceUserInfo.dynUSDCBalance).to.equal(0);
-    expect(aliceUserInfo.optStatus).to.equal(OptStatus.OptOut);
-  });
-
-  it("should allow a user to withdraw USDC when opted out by default", async function () {
-    const depositAmount = parseUsdc("100");
-    await mintAndApproveUSDC(usdc, alice, escrow.address, depositAmount);
-    await escrow.connect(alice).deposit(depositAmount);
-
-    await expect(escrow.connect(alice).withdraw(depositAmount))
-      .to.emit(escrow, "Withdraw")
-      .withArgs(alice.address, depositAmount);
-
-    const aliceUserInfo = await escrow.userInfo(alice.address);
-    expect(aliceUserInfo.usdcBalance).to.equal(0);
-    expect(aliceUserInfo.dynUSDCBalance).to.equal(0);
-    expect(aliceUserInfo.optStatus).to.equal(OptStatus.OptOut);
-  });
-
-  it("should allow a user to withdraw USDC when opted in", async function () {
+  it("should allow a user to withdraw USDC when opted-in", async function () {
     const depositAmount = parseUsdc("100");
     await mintAndApproveUSDC(usdc, alice, escrow.address, depositAmount);
     await escrow.connect(alice).deposit(depositAmount);
@@ -188,19 +185,16 @@ export default function testEscrow() {
     expect(aliceUserInfoAfterWithdraw.optStatus).to.equal(OptStatus.OptOut);
   });
 
-  it("should allow a user to opt in to Dynavault", async function () {
-    const depositAmount = parseUsdc("100");
-    await mintAndApproveUSDC(usdc, alice, escrow.address, depositAmount);
-    await escrow.connect(alice).deposit(depositAmount);
+  /// Opting Out of the Vault ///
 
-    const expectedUSDCBalance = 0;
-    const expectedDynUSDCBalance = depositAmount;
-    await expect(escrow.connect(alice).optIn())
-      .to.emit(escrow, "OptIn")
-      .withArgs(alice.address, expectedUSDCBalance, expectedDynUSDCBalance);
+  it("should revert when opting out if not opted-in", async function () {
+    await expect(escrow.connect(alice).optOut()).to.be.revertedWithCustomError(
+      escrow,
+      Errors.LaunchpadV3_UserNotOptedIn
+    );
   });
 
-  it("should allow a user to opt out of Dynavault", async function () {
+  it("should allow a user to opt-out of Dynavault", async function () {
     const depositAmount = parseUsdc("100");
     await mintAndApproveUSDC(usdc, alice, escrow.address, depositAmount);
     await escrow.connect(alice).deposit(depositAmount);
@@ -213,6 +207,22 @@ export default function testEscrow() {
       .withArgs(alice.address, expectedDynUSDCBalance, expectedUSDCBalance);
   });
 
+  /// Admin Operations ///
+
+  it("should revert when non-admin tries to update the vault", async function () {
+    await expect(escrow.connect(alice).setVault(vault.address)).to.be.revertedWithCustomError(
+      escrow,
+      Errors.AccessControlUnauthorizedAccount
+    );
+  });
+
+  it("should revert when admin tries to set a zero vault address", async function () {
+    await expect(escrow.connect(deployer).setVault(ethers.constants.AddressZero)).to.be.revertedWithCustomError(
+      addressLibrary,
+      Errors.LaunchpadV3_AddressLibrary_InvalidAddress
+    );
+  });
+
   it("should allow the admin to update the vault", async function () {
     const { vaultMock: newVault } = await deployVaultMock(usdc.address);
 
@@ -220,6 +230,8 @@ export default function testEscrow() {
       .to.emit(escrow, "VaultUpdated")
       .withArgs(vault.address, newVault.address);
   });
+
+  /// Edge Cases and Security ///
 
   it("should handle multiple deposits and withdrawals for multiple users", async function () {
     const depositAmount1 = parseUsdc("100");
@@ -263,10 +275,9 @@ export default function testEscrow() {
       .withArgs(bob.address, depositAmount2);
   });
 
+  // Note: Here the ratio between USDC and DynUSDC is 1:1
+  // TODO: Add more tests for different ratios
   it("should ensure balances are updated correctly after multiple interactions", async function () {
-    // Note: Here the ratio between USDC and DynUSDC is 1:1
-    // TODO: Add more tests for different ratios
-
     const depositAmount = parseUsdc("100");
     await mintAndApproveUSDC(usdc, alice, escrow.address, depositAmount);
     await escrow.connect(alice).deposit(depositAmount);
