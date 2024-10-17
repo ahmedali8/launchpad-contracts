@@ -1,7 +1,7 @@
-import { testEscrow } from "./Escrow.test";
+import testEscrow from "./Escrow.test";
 
-function runUnitTests() {
-  describe("Unit tests", function () {
+function runUnitTests(): void {
+  describe("Escrow", function () {
     testEscrow();
   });
 }

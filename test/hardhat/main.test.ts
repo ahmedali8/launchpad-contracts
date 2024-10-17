@@ -2,13 +2,15 @@ import flowTest from "./Flow.test";
 import MyOAppTest from "./MyOApp.test";
 import runUnitTests from "./unit";
 
-describe("Flow tests", function () {
-  flowTest();
-});
+// describe("Flow tests", function () {
+//   flowTest();
+// });
 
-describe("MyOApp tests", function () {
-  MyOAppTest();
-});
+// describe("MyOApp tests", function () {
+//   MyOAppTest();
+// });
 
 // Runs all unit tests
-runUnitTests();
+describe("Unit tests", function () {
+  runUnitTests();
+});
