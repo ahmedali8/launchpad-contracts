@@ -19,6 +19,8 @@ import { TEscrow } from "./types/TEscrow.sol";
 // abstract contracts
 import { Clonable } from "./utilities/Clonable.sol";
 
+import "hardhat/console.sol";
+
 /// @title Escrow Contract
 /// @dev A contract that allows users to deposit USDC and earn yield if opted-in to a yield-bearing vault.
 contract Escrow is Clonable, ReentrancyGuard, IEscrow {
@@ -81,18 +83,18 @@ contract Escrow is Clonable, ReentrancyGuard, IEscrow {
             if (_user.dynUSDCBalance == 0) revert Errors.LaunchpadV3_Escrow_InsufficientDynUSDCBalance();
 
             // Redeem DynUSDC from the vault and convert back to USDC
-            usdcAmount = vault.withdraw({ assets: usdcAmount, receiver: address(this), owner: address(this) });
-            _user.dynUSDCBalance = 0;
+            uint256 _dynUSDCBalance =
+                vault.withdraw({ assets: usdcAmount, receiver: address(this), owner: address(this) });
+            _user.dynUSDCBalance -= _dynUSDCBalance;
             _user.optStatus = TEscrow.OptStatus.OptOut;
+        } else {
+            // Else user is opted out, withdraw USDC directly
+
+            if (_user.usdcBalance < usdcAmount) {
+                revert Errors.LaunchpadV3_Escrow_InsufficientUSDCBalance();
+            }
+            _user.usdcBalance -= usdcAmount;
         }
-
-        // If user is opted out, withdraw USDC directly
-
-        if (_user.usdcBalance < usdcAmount) {
-            revert Errors.LaunchpadV3_Escrow_InsufficientUSDCBalance();
-        }
-
-        _user.usdcBalance -= usdcAmount;
 
         // Update user info to storage
         userInfo[_msgSender()] = _user;
@@ -119,6 +121,11 @@ contract Escrow is Clonable, ReentrancyGuard, IEscrow {
 
         // Deposit USDC into Dynavault and mint DynUSDC (shares) for the user
         uint256 _dynUSDCAmount = vault.deposit({ assets: _user.usdcBalance, receiver: address(this) });
+
+        console.log("optIn - DynUSDC amount: %s", _dynUSDCAmount);
+
+        // Check: Ensure the user has received DynUSDC
+        if (_dynUSDCAmount == 0) revert Errors.LaunchpadV3_Escrow_InsufficientDynUSDCAmountReceived();
 
         // Update user info to storage
         _user.usdcBalance = 0;
