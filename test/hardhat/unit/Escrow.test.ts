@@ -3,7 +3,7 @@ import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { assert, expect } from "chai";
 import { ethers } from "hardhat";
 
-import type { AddressLibrary, Escrow, USDCMock, VaultMock, VaultMock__factory } from "../../../typechain-types";
+import type { AddressLibrary, Escrow, USDCMock, VaultMock } from "../../../typechain-types";
 import { OptStatus } from "../constants";
 import { Errors } from "../shared/errors";
 import { deployVaultMock, setupEscrowTest } from "../shared/fixtures";
@@ -128,11 +128,6 @@ export default function testEscrow() {
       addressLibrary,
       Errors.LaunchpadV3_AddressLibrary_InvalidAddress
     );
-  });
-
-  it("should prevent reentrancy attacks on withdraw", async function () {
-    // Simulate and test reentrancy vulnerability in withdraw
-    // Non-trivial: would require a special contract that tries to reenter
   });
 
   /// Happy Paths (Expected Behavior) ///
