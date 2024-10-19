@@ -30,19 +30,19 @@ interface IProjectAllocationManager {
 
     /// @notice Event emitted when the project is initialized.
     /// @param project The project information.
-    event ProjectInitialized(TProjectAllocationManager.Project project);
+    event Initialized(TProjectAllocationManager.Project project);
 
     /// @notice Event emitted when the vesting schedule is updated.
-    /// @param vestingStartTime The updated vesting start time.
-    event VestingScheduleUpdated(uint256 vestingStartTime);
+    /// @param vestingSchedule The struct defining the vesting schedule.
+    event VestingScheduleUpdated(TProjectAllocationManager.VestingSchedule vestingSchedule);
 
     /// @notice Event emitted when the refund period is updated.
     /// @param refundPeriod The struct defining the refund period.
     event RefundPeriodUpdated(TProjectAllocationManager.RefundPeriod refundPeriod);
 
-    /// @notice Event emitted when tokens are withdrawn from the contract.
+    /// @notice Event emitted when tokens are collected from the contract.
     /// @param to Receiver of the tokens.
-    /// @param amount The amount of tokens withdrawn.
+    /// @param amount The amount of tokens collected.
     event DepositsCollected(address indexed to, uint256 amount);
 
     /// @notice Event emitted when the whitelist signer is set.
@@ -83,8 +83,7 @@ interface IProjectAllocationManager {
     function reimbursement() external;
 
     /// @notice Allows users to claim their allocated tokens.
-    /// @param destinationAddress The address on the destination chain to send the tokens.
-    function claim(address destinationAddress) external;
+    function claim() external;
 
     /*//////////////////////////////////////////////////////////////
                    NON-CONSTANT ONLY-ADMIN FUNCTIONS
@@ -95,7 +94,7 @@ interface IProjectAllocationManager {
     /// @dev Only the admin can call this function.
     /// @dev It can only be called once.
     /// @param project The struct containing the initial project details.
-    function initializeProject(TProjectAllocationManager.Project calldata project) external;
+    function initializer(TProjectAllocationManager.Project calldata project) external;
 
     /// @notice Configures the vesting parameters.
     /// @dev Only the admin can call this function.
