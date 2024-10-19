@@ -36,6 +36,28 @@ interface IProjectAllocationManager {
     /// @param vestingStartTime The updated vesting start time.
     event VestingScheduleUpdated(uint256 vestingStartTime);
 
+    /// @notice Event emitted when the refund period is updated.
+    /// @param refundPeriod The struct defining the refund period.
+    event RefundPeriodUpdated(TProjectAllocationManager.RefundPeriod refundPeriod);
+
+    /// @notice Event emitted when tokens are withdrawn from the contract.
+    /// @param to Receiver of the tokens.
+    /// @param amount The amount of tokens withdrawn.
+    event DepositsCollected(address indexed to, uint256 amount);
+
+    /// @notice Event emitted when the whitelist signer is set.
+    /// @param signer The address of the new whitelist signer.
+    event SignerSet(address indexed signer);
+
+    /// @notice Event emitted when native tokens are recovered.
+    /// @param amount The amount of native tokens recovered.
+    event GasRecovered(uint256 amount);
+
+    /// @notice Event emitted when any tokens accidentally sent to the contract are recovered.
+    /// @param token The address of the token recovered.
+    /// @param amount The amount of tokens recovered.
+    event TokensRecovered(address indexed token, uint256 amount);
+
     /*//////////////////////////////////////////////////////////////
                          NON-CONSTANT FUNCTIONS
     //////////////////////////////////////////////////////////////*/
