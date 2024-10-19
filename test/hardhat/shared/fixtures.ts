@@ -1,3 +1,5 @@
+import { parseUnits } from "@ethersproject/units";
+import { BigNumber } from "ethers";
 import { ethers } from "hardhat";
 import type { Libraries } from "hardhat/types";
 
@@ -11,6 +13,8 @@ import type {
   USDCMock,
   USDCMock__factory,
   VaultMock,
+  VaultMockVariableRatio,
+  VaultMockVariableRatio__factory,
   VaultMock__factory,
 } from "../../../typechain-types";
 import { getSigners } from "../utils/getSigners";
@@ -54,6 +58,19 @@ export async function deployVaultMock(usdcAddress: string) {
   return { vaultMock };
 }
 
+export async function deployVaultMockVariableRatio(usdcAddress: string, ratio: BigNumber) {
+  const { deployer } = await getSigners();
+  const VaultMockVariableRatioFactory: VaultMockVariableRatio__factory = (await ethers.getContractFactory(
+    "VaultMockVariableRatio"
+  )) as VaultMockVariableRatio__factory;
+  const vaultMockVariableRatio: VaultMockVariableRatio = await VaultMockVariableRatioFactory.connect(deployer).deploy(
+    usdcAddress,
+    ratio
+  );
+  await vaultMockVariableRatio.deployed();
+  return { vaultMockVariableRatio };
+}
+
 /// CONTRACTS ///
 
 export async function deployEscrow() {
@@ -76,7 +93,9 @@ export async function deployEscrow() {
 
 /// TEST SETUPS ///
 
-export async function setupEscrowTest() {
+// ESCROW TESTS //
+
+export async function setupEscrowUnitTest() {
   // Deploy mocks
   const { usdcMock } = await deployUSDCMock();
   const { vaultMock } = await deployVaultMock(usdcMock.address);
@@ -90,6 +109,27 @@ export async function setupEscrowTest() {
   return {
     usdcMock,
     vaultMock,
+    escrow,
+    addressLibrary,
+  };
+}
+
+export async function setupEscrowE2ETest() {
+  const initialRatio = parseUnits("1"); // 1e18
+
+  // Deploy mocks
+  const { usdcMock: usdc } = await deployUSDCMock();
+  const { vaultMockVariableRatio: vault } = await deployVaultMockVariableRatio(usdc.address, initialRatio);
+
+  // Deploy escrow
+  const { escrow, addressLibrary } = await deployEscrow();
+
+  // Initialize the escrow contract
+  await escrow.initializer(usdc.address, vault.address);
+
+  return {
+    usdc,
+    vault,
     escrow,
     addressLibrary,
   };

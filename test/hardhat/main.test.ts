@@ -1,16 +1,12 @@
-import flowTest from "./Flow.test";
-import MyOAppTest from "./MyOApp.test";
+import runE2ETests from "./e2e";
 import runUnitTests from "./unit";
-
-// describe("Flow tests", function () {
-//   flowTest();
-// });
-
-// describe("MyOApp tests", function () {
-//   MyOAppTest();
-// });
 
 // Runs all unit tests
 describe("Unit tests", function () {
   runUnitTests();
+});
+
+// Run all end-to-end tests
+describe("End-to-End tests", function () {
+  runE2ETests();
 });

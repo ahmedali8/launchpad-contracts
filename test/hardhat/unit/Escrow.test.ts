@@ -6,7 +6,7 @@ import { ethers } from "hardhat";
 import type { AddressLibrary, Escrow, USDCMock, VaultMock } from "../../../typechain-types";
 import { OptStatus } from "../constants";
 import { Errors } from "../shared/errors";
-import { deployVaultMock, setupEscrowTest } from "../shared/fixtures";
+import { deployVaultMock, setupEscrowUnitTest } from "../shared/fixtures";
 import { parseUsdc } from "../utils";
 import { getSigners } from "../utils/getSigners";
 import { mintAndApproveUSDC } from "../utils/mintAndApproveUSDC";
@@ -33,7 +33,7 @@ export default function testEscrow() {
     bob = signers.bob;
 
     // Load the contracts
-    const contracts = await loadFixture(setupEscrowTest);
+    const contracts = await loadFixture(setupEscrowUnitTest);
     escrow = contracts.escrow;
     usdc = contracts.usdcMock;
     vault = contracts.vaultMock;
@@ -276,7 +276,6 @@ export default function testEscrow() {
   });
 
   // Note: Here the ratio between USDC and DynUSDC is 1:1
-  // TODO: Add more tests for different ratios
   it("should ensure balances are updated correctly after multiple interactions", async function () {
     const depositAmount = parseUsdc("100");
     await mintAndApproveUSDC(usdc, alice, escrow.address, depositAmount);

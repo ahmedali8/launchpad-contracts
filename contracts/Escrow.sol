@@ -83,9 +83,16 @@ contract Escrow is Clonable, ReentrancyGuard, IEscrow {
             if (_user.dynUSDCBalance == 0) revert Errors.LaunchpadV3_Escrow_InsufficientDynUSDCBalance();
 
             // Redeem DynUSDC from the vault and convert back to USDC
-            uint256 _dynUSDCBalance =
-                vault.withdraw({ assets: usdcAmount, receiver: address(this), owner: address(this) });
-            _user.dynUSDCBalance -= _dynUSDCBalance;
+            // uint256 _dynUSDCBalance =
+            //     vault.withdraw({ assets: usdcAmount, receiver: address(this), owner: address(this) });
+            // console.log("withdraw - DynUSDC amount: %s", _dynUSDCBalance / 1e6);
+            // console.log("withdraw - user DynUSDC balance: %s", _user.dynUSDCBalance / 1e6);
+            // Convert DynUSDC (shares) back to USDC (assets)
+            console.log("Escrow - withdraw - user DynUSDC balance: %s", _user.dynUSDCBalance);
+
+            usdcAmount = vault.redeem({ shares: _user.dynUSDCBalance, receiver: address(this), owner: address(this) });
+            console.log("Escrow - withdraw - USDC amount: %s", usdcAmount);
+            _user.dynUSDCBalance = 0;
             _user.optStatus = TEscrow.OptStatus.OptOut;
         } else {
             // Else user is opted out, withdraw USDC directly
