@@ -1,0 +1,104 @@
+// SPDX-License-Identifier: MIT
+
+pragma solidity ^0.8.22;
+
+// types
+import { TProjectAllocationManager } from "../types/TProjectAllocationManager.sol";
+
+/// @title IProjectAllocationManager
+/// @notice Interface for the ProjectAllocationManager contract.
+interface IProjectAllocationManager {
+    /*//////////////////////////////////////////////////////////////
+                                 EVENTS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Event emitted when a user deposits USDC or DynUSDC.
+    /// @param user The address of the user.
+    /// @param amount The amount deposited.
+    event Deposited(address indexed user, uint256 amount);
+
+    /// @notice Event emitted when a user requests a refund.
+    /// @param user The address of the user.
+    /// @param amount The refunded amount.
+    event Refunded(address indexed user, uint256 amount);
+
+    /// @notice Event emitted when a user claims tokens.
+    /// @param user The address of the user.
+    /// @param amount The amount of tokens claimed.
+    /// @param destinationAddress The address on the destination network.
+    event Claimed(address indexed user, uint256 amount, address destinationAddress);
+
+    /// @notice Event emitted when the project is initialized.
+    /// @param project The project information.
+    event ProjectInitialized(TProjectAllocationManager.Project project);
+
+    /// @notice Event emitted when the vesting schedule is updated.
+    /// @param vestingStartTime The updated vesting start time.
+    event VestingScheduleUpdated(uint256 vestingStartTime);
+
+    /*//////////////////////////////////////////////////////////////
+                         NON-CONSTANT FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Allows users to deposit USDC in the project to get tokens.
+    /// @dev This calls the Escrow contract's `takeFundsFromUser` function to take the user's funds.
+    /// - If the user has opted-in that means they have DynUSDC, so the contract will take DynUSDC and convert it to
+    /// USDC
+    /// because the price of tokens is in USDC.
+    /// - If the user has opted-out that means they have USDC, so the contract will take USDC.
+    /// @param amount The amount of USDC to deposit.
+    /// @param salt The salt used to sign the message.
+    /// @param signature The signature of the message.
+    function deposit(uint256 amount, string calldata salt, bytes calldata signature) external;
+
+    /// @notice Allows users to request a refund.
+    /// @dev If users no longer wish to participate in a project, they can request a refund before the token sale
+    /// concludes.
+    function refund() external;
+
+    /// @notice Allows the user to request reimbursement.
+    /// @dev More funds were deposited so the excess amount is calculated based on the user’s allocation.
+    function reimbursement() external;
+
+    /// @notice Allows users to claim their allocated tokens.
+    /// @param destinationAddress The address on the destination chain to send the tokens.
+    function claim(address destinationAddress) external;
+
+    /*//////////////////////////////////////////////////////////////
+                   NON-CONSTANT ONLY-ADMIN FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Initializes the project.
+    /// @dev This function sets up all the project details.
+    /// @dev Only the admin can call this function.
+    /// @dev It can only be called once.
+    /// @param project The struct containing the initial project details.
+    function initializeProject(TProjectAllocationManager.Project calldata project) external;
+
+    /// @notice Configures the vesting parameters.
+    /// @dev Only the admin can call this function.
+    /// @param vestingSchedule The struct defining the vesting schedule.
+    function setVestingSchedule(TProjectAllocationManager.VestingSchedule calldata vestingSchedule) external;
+
+    /// @notice Configures the refund period.
+    /// @dev Only the admin can call this function.
+    /// @param refundPeriod The struct defining the refund period.
+    function setRefundPeriod(TProjectAllocationManager.RefundPeriod calldata refundPeriod) external;
+
+    /// @notice Withdraw tokens from the contract.
+    /// @dev Only the admin can call this function.
+    /// @param to Receiver of the tokens.
+    function collectDeposits(address to) external;
+
+    /// @notice Sets the whitelist signer.
+    /// @dev Only the admin can call this function.
+    function setSigner(address signer) external;
+
+    /// @notice Recover native tokens.
+    /// @dev Only the admin can call this function.
+    function recoverGas() external;
+
+    /// @notice Recover any tokens accidentally sent to the contract excluding properly deposited or bought tokens.
+    /// @dev Only the admin can call this function.
+    function recoverAnyTokens(address token) external;
+}
