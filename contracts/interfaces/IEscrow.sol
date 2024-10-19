@@ -3,7 +3,7 @@
 pragma solidity ^0.8.22;
 
 // types
-import { TEscrow } from "../types/TEscrow.sol";
+import { TCommon } from "../types/TCommon.sol";
 
 /// @title IEscrow
 /// @notice Interface for the Escrow contract.
@@ -16,7 +16,7 @@ interface IEscrow {
     /// @param user The address of the user who deposited USDC.
     /// @param amount The amount of USDC deposited by the user.
     /// @param optStatus The opt-in status of the user for the deposit.
-    event Deposited(address indexed user, uint256 amount, TEscrow.OptStatus optStatus);
+    event Deposited(address indexed user, uint256 amount, TCommon.OptStatus optStatus);
 
     /// @notice Event emitted when a user withdraws USDC.
     /// @param user The address of the user who withdrew USDC.
@@ -42,6 +42,25 @@ interface IEscrow {
                          NON-CONSTANT FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
+    /// @notice Allows users to deposit USDC into the escrow contract with an option to opt-in or opt-out.
+    /// @dev The deposited amount is added to the user's balance based on their opt-in status.
+    /// @dev Reverts if:
+    /// - the deposit amount is zero.
+    /// - the USDC is not approved to this contract.
+    /// @param amount The amount of USDC to deposit.
+    /// @param optStatus The opt-in status (OptIn or OptOut) for the deposit.
+    function deposit(uint256 amount, TCommon.OptStatus optStatus) external;
+
+    /// @notice Allows users to withdraw their USDC or DynUSDC converted back to USDC based on their opt-in status.
+    /// @dev If the user is opted-in, their DynUSDC is first redeemed for USDC.
+    /// @dev Reverts if:
+    /// - the user has insufficient balance to withdraw.
+    function withdraw() external;
+
+    /*//////////////////////////////////////////////////////////////
+                   NON-CONSTANT ONLY-ADMIN FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
     /// @notice Initializes the Escrow contract by setting the USDC and vault addresses.
     /// @dev Can only be called once. It checks if the contract has already been initialized.
     /// @dev Reverts if:
@@ -50,21 +69,6 @@ interface IEscrow {
     /// @param usdcAddress The address of the USDC token.
     /// @param vaultAddress The address of the Dynavault (yield-bearing vault).
     function initializer(address usdcAddress, address vaultAddress) external;
-
-    /// @notice Allows users to deposit USDC into the escrow contract with an option to opt-in or opt-out.
-    /// @dev The deposited amount is added to the user's balance based on their opt-in status.
-    /// @dev Reverts if:
-    /// - the deposit amount is zero.
-    /// - the USDC is not approved to this contract.
-    /// @param amount The amount of USDC to deposit.
-    /// @param optStatus The opt-in status (OptIn or OptOut) for the deposit.
-    function deposit(uint256 amount, TEscrow.OptStatus optStatus) external;
-
-    /// @notice Allows users to withdraw their USDC or DynUSDC converted back to USDC based on their opt-in status.
-    /// @dev If the user is opted-in, their DynUSDC is first redeemed for USDC.
-    /// @dev Reverts if:
-    /// - the user has insufficient balance to withdraw.
-    function withdraw() external;
 
     /*//////////////////////////////////////////////////////////////
                      NON-CONSTANT ONLY-PAM FUNCTIONS
