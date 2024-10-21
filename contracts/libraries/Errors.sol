@@ -2,6 +2,8 @@
 
 pragma solidity ^0.8.22;
 
+import { TCommon } from "../types/TCommon.sol";
+
 /// @title Errors
 /// @notice Library to manage error messages for the LaunchpadV3 contracts.
 library Errors {
@@ -33,10 +35,7 @@ library Errors {
     error LaunchpadV3_Escrow_InvalidAmount();
 
     /// @notice Error when the user has insufficient USDC balance.
-    error LaunchpadV3_Escrow_InsufficientUSDCBalance();
-
-    /// @notice Error when the user has insufficient DynUSDC balance.
-    error LaunchpadV3_Escrow_InsufficientDynUSDCBalance();
+    error LaunchpadV3_Escrow_InsufficientBalance(uint256 amount, TCommon.OptStatus optStatus);
 
     /// @notice Error when the user cannot withdraw.
     error LaunchpadV3_Escrow_UserCannotWithdraw();

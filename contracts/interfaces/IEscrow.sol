@@ -66,7 +66,8 @@ interface IEscrow {
     /// - the provided addresses are zero addresses.
     /// @param usdcAddress The address of the USDC token.
     /// @param vaultAddress The address of the Dynavault (yield-bearing vault).
-    function initializer(address usdcAddress, address vaultAddress) external;
+    /// @param pamAddress The address of the ProjectAllocationManager.
+    function initializer(address usdcAddress, address vaultAddress, address pamAddress) external;
 
     /*//////////////////////////////////////////////////////////////
                      NON-CONSTANT ONLY-PAM FUNCTIONS

@@ -37,6 +37,9 @@ contract Escrow is Clonable, ReentrancyGuard, IEscrow {
     /// @notice Dynavault address
     IERC4626 public vault;
 
+    /// @notice Address of the project allocation manager
+    address public projectAllocationManager;
+
     /// @notice Mapping to track the balances and statuses of each user in the Escrow contract.
     /// @dev Maps each user address to their corresponding `UserInfo` struct.
     mapping(address => TEscrow.UserInfo) public userInfo;
@@ -46,7 +49,70 @@ contract Escrow is Clonable, ReentrancyGuard, IEscrow {
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc IEscrow
-    function initializer(address usdcAddress, address vaultAddress) external override {
+    function deposit(uint256 amount, TCommon.OptStatus optStatus) external override nonReentrant {
+        if (amount == 0) revert Errors.LaunchpadV3_Escrow_InvalidAmount();
+
+        TEscrow.UserInfo storage _user = userInfo[_msgSender()];
+
+        // Interaction: Transfer USDC from user to this contract
+        usdc.safeTransferFrom(_msgSender(), address(this), amount);
+
+        // if the user is opt-in then we deposit to vault
+        if (optStatus == TEscrow.OptStatus.OptIn) {
+            // Interaction: Approve USDC to be spent by the vault
+            usdc.approve(address(vault), amount);
+
+            // Interaction: Deposit USDC into the vault and get DynUSDC (shares) for the user
+            uint256 _dynUSDCAmount = vault.deposit({ assets: amount, receiver: address(this) });
+
+            // Check: Ensure the user has received DynUSDC
+            if (_dynUSDCAmount == 0) revert Errors.LaunchpadV3_Escrow_InsufficientDynUSDCAmountReceived();
+
+            // Effect: Update user info
+            _user.balance += _dynUSDCAmount;
+        } else {
+            // Effect: if the user is opt-out (default) then we deposit to escrow
+            _user.usdcBalance += amount;
+        }
+
+        // Effect: Update user opt status
+        _user.optStatus = TEscrow.OptStatus.OptIn;
+
+        // Emit deposit event
+        emit Deposited(_msgSender(), amount, optStatus);
+    }
+
+    /// @inheritdoc IEscrow
+    function withdraw() external override nonReentrant {
+        TEscrow.UserInfo memory _user = userInfo[_msgSender()];
+
+        if (_user.balance == 0) revert Errors.LaunchpadV3_Escrow_InsufficientBalance(_user.balance, _user.optStatus);
+
+        // If user is opted-out (default), withdraw USDC directly
+        uint256 _withdrawAmount = _user.balance;
+
+        // If user is opted-in, convert DynUSDC to USDC
+        if (_user.optStatus == TEscrow.OptStatus.OptIn) {
+            // Redeem DynUSDC from the vault and convert back to USDC
+            _withdrawAmount = vault.redeem({ shares: _user.balance, receiver: address(this), owner: address(this) });
+        }
+
+        // Effect: delete the user
+        delete userInfo[_msgSender()];
+
+        // Interaction: Transfer USDC to user
+        usdc.safeTransfer(_msgSender(), _withdrawAmount);
+
+        // Emit withdrawal event
+        emit Withdrawn(_msgSender(), _withdrawAmount);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                   NON-CONSTANT ONLY-ADMIN FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @inheritdoc IEscrow
+    function initializer(address usdcAddress, address vaultAddress, address pamAddress) external override {
         // Check: Ensure the contract is not already initialized
         if (!address(usdc).isAddressZero()) {
             revert Errors.LaunchpadV3_Escrow_AlreadyInitialized();
@@ -59,118 +125,6 @@ contract Escrow is Clonable, ReentrancyGuard, IEscrow {
         usdc = IERC20(usdcAddress);
         vault = IERC4626(vaultAddress);
     }
-
-    /// @inheritdoc IEscrow
-    function deposit(uint256 amount) external override {
-        if (amount == 0) revert Errors.LaunchpadV3_Escrow_InvalidAmount();
-
-        // Transfer USDC from user to this contract
-        usdc.safeTransferFrom(_msgSender(), address(this), amount);
-
-        // Update user's USDC balance in the escrow contract
-        userInfo[_msgSender()].usdcBalance += amount;
-
-        // Emit deposit event
-        emit Deposit(_msgSender(), amount);
-    }
-
-    /// @inheritdoc IEscrow
-    function withdraw(uint256 usdcAmount) external override nonReentrant {
-        TEscrow.UserInfo memory _user = userInfo[_msgSender()];
-
-        // If user is opted in, convert DynUSDC to USDC
-        if (_user.optStatus == TEscrow.OptStatus.OptIn) {
-            if (_user.dynUSDCBalance == 0) revert Errors.LaunchpadV3_Escrow_InsufficientDynUSDCBalance();
-
-            // Redeem DynUSDC from the vault and convert back to USDC
-            // uint256 _dynUSDCBalance =
-            //     vault.withdraw({ assets: usdcAmount, receiver: address(this), owner: address(this) });
-            // console.log("withdraw - DynUSDC amount: %s", _dynUSDCBalance / 1e6);
-            // console.log("withdraw - user DynUSDC balance: %s", _user.dynUSDCBalance / 1e6);
-            // Convert DynUSDC (shares) back to USDC (assets)
-            console.log("Escrow - withdraw - user DynUSDC balance: %s", _user.dynUSDCBalance);
-
-            usdcAmount = vault.redeem({ shares: _user.dynUSDCBalance, receiver: address(this), owner: address(this) });
-            console.log("Escrow - withdraw - USDC amount: %s", usdcAmount);
-            _user.dynUSDCBalance = 0;
-            _user.optStatus = TEscrow.OptStatus.OptOut;
-        } else {
-            // Else user is opted out, withdraw USDC directly
-
-            if (_user.usdcBalance < usdcAmount) {
-                revert Errors.LaunchpadV3_Escrow_InsufficientUSDCBalance();
-            }
-            _user.usdcBalance -= usdcAmount;
-        }
-
-        // Update user info to storage
-        userInfo[_msgSender()] = _user;
-
-        // Transfer USDC to user
-        usdc.safeTransfer(_msgSender(), usdcAmount);
-
-        // Emit withdrawal event
-        emit Withdraw(_msgSender(), usdcAmount);
-    }
-
-    /// @inheritdoc IEscrow
-    function optIn() external override nonReentrant {
-        TEscrow.UserInfo memory _user = userInfo[_msgSender()];
-
-        // Check: If the user is already opted-in
-        if (_user.optStatus == TEscrow.OptStatus.OptIn) revert Errors.LaunchpadV3_UserAlreadyOptedIn();
-
-        // Check: Ensure the user has USDC to convert
-        if (_user.usdcBalance == 0) revert Errors.LaunchpadV3_Escrow_InsufficientUSDCBalance();
-
-        // Approve Dynavault to spend the user's USDC
-        usdc.approve(address(vault), _user.usdcBalance);
-
-        // Deposit USDC into Dynavault and mint DynUSDC (shares) for the user
-        uint256 _dynUSDCAmount = vault.deposit({ assets: _user.usdcBalance, receiver: address(this) });
-
-        console.log("optIn - DynUSDC amount: %s", _dynUSDCAmount);
-
-        // Check: Ensure the user has received DynUSDC
-        if (_dynUSDCAmount == 0) revert Errors.LaunchpadV3_Escrow_InsufficientDynUSDCAmountReceived();
-
-        // Update user info to storage
-        _user.usdcBalance = 0;
-        _user.dynUSDCBalance += _dynUSDCAmount;
-        _user.optStatus = TEscrow.OptStatus.OptIn;
-        userInfo[_msgSender()] = _user;
-
-        // Emit opt-in event
-        emit OptIn(_msgSender(), _user.usdcBalance, _dynUSDCAmount);
-    }
-
-    /// @inheritdoc IEscrow
-    function optOut() external override nonReentrant {
-        TEscrow.UserInfo memory _user = userInfo[_msgSender()];
-
-        // Check: Ensure the user is opted in
-        if (_user.optStatus != TEscrow.OptStatus.OptIn) revert Errors.LaunchpadV3_UserNotOptedIn();
-
-        // Assert Invariant: The DynUSDC balance of user cannot be zero when opted-in.
-        assert(_user.dynUSDCBalance > 0);
-
-        // Convert DynUSDC (shares) back to USDC (assets)
-        uint256 _usdcAmount =
-            vault.redeem({ shares: _user.dynUSDCBalance, receiver: address(this), owner: address(this) });
-
-        // Update user info to storage
-        _user.dynUSDCBalance = 0;
-        _user.usdcBalance += _usdcAmount;
-        _user.optStatus = TEscrow.OptStatus.OptOut;
-        userInfo[_msgSender()] = _user;
-
-        // Emit opt-out event
-        emit OptOut(_msgSender(), _user.dynUSDCBalance, _usdcAmount);
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                   ONLY-ADMIN NON-CONSTANT FUNCTIONS
-    //////////////////////////////////////////////////////////////*/
 
     /// @notice Sets a new vault address.
     /// @dev Can only be called by the admin.
@@ -186,5 +140,27 @@ contract Escrow is Clonable, ReentrancyGuard, IEscrow {
 
         // Update the vault address
         vault = IERC4626(newVaultAddress);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                     NON-CONSTANT ONLY-PAM FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @inheritdoc IEscrow
+    function takeFundsFromUser(address user, uint256 amount) external override {
+        require(msg.sender == projectAllocationManager, "Escrow: Unauthorized");
+
+        TEscrow.UserInfo storage _user = userInfo[user];
+        if (_user.balance < amount) revert Errors.LaunchpadV3_Escrow_InsufficientBalance();
+
+        if (_user.optStatus == TCommon.OptStatus.OptIn) {
+            uint256 _redeemed = vault.redeem(amount, address(this), address(this));
+            usdc.safeTransfer(msg.sender, _redeemed);
+        } else {
+            usdc.safeTransfer(msg.sender, amount);
+        }
+
+        _user.balance -= amount;
+        emit FundsTaken(user, amount);
     }
 }
