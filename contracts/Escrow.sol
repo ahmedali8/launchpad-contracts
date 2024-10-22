@@ -15,6 +15,7 @@ import { AddressLibrary } from "./libraries/AddressLibrary.sol";
 
 // types
 import { TEscrow } from "./types/TEscrow.sol";
+import { TCommon } from "./types/TCommon.sol";
 
 // abstract contracts
 import { Clonable } from "./utilities/Clonable.sol";
@@ -25,6 +26,7 @@ import "hardhat/console.sol";
 /// @dev A contract that allows users to deposit USDC and earn yield if opted-in to a yield-bearing vault.
 contract Escrow is Clonable, ReentrancyGuard, IEscrow {
     using SafeERC20 for IERC20;
+    using SafeERC20 for IERC4626;
     using AddressLibrary for address;
 
     /*//////////////////////////////////////////////////////////////
@@ -45,6 +47,15 @@ contract Escrow is Clonable, ReentrancyGuard, IEscrow {
     mapping(address => TEscrow.UserInfo) public userInfo;
 
     /*//////////////////////////////////////////////////////////////
+                               MODIFIERS
+    //////////////////////////////////////////////////////////////*/
+
+    modifier onlyPAM() {
+        if (_msgSender() != projectAllocationManager) revert Errors.LaunchpadV3_Unauthorized();
+        _;
+    }
+
+    /*//////////////////////////////////////////////////////////////
                          NON-CONSTANT FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
@@ -58,7 +69,7 @@ contract Escrow is Clonable, ReentrancyGuard, IEscrow {
         usdc.safeTransferFrom(_msgSender(), address(this), amount);
 
         // if the user is opt-in then we deposit to vault
-        if (optStatus == TEscrow.OptStatus.OptIn) {
+        if (optStatus == TCommon.OptStatus.OptIn) {
             // Interaction: Approve USDC to be spent by the vault
             usdc.approve(address(vault), amount);
 
@@ -72,11 +83,11 @@ contract Escrow is Clonable, ReentrancyGuard, IEscrow {
             _user.balance += _dynUSDCAmount;
         } else {
             // Effect: if the user is opt-out (default) then we deposit to escrow
-            _user.usdcBalance += amount;
+            _user.balance += amount;
         }
 
         // Effect: Update user opt status
-        _user.optStatus = TEscrow.OptStatus.OptIn;
+        _user.optStatus = TCommon.OptStatus.OptIn;
 
         // Emit deposit event
         emit Deposited(_msgSender(), amount, optStatus);
@@ -92,7 +103,7 @@ contract Escrow is Clonable, ReentrancyGuard, IEscrow {
         uint256 _withdrawAmount = _user.balance;
 
         // If user is opted-in, convert DynUSDC to USDC
-        if (_user.optStatus == TEscrow.OptStatus.OptIn) {
+        if (_user.optStatus == TCommon.OptStatus.OptIn) {
             // Redeem DynUSDC from the vault and convert back to USDC
             _withdrawAmount = vault.redeem({ shares: _user.balance, receiver: address(this), owner: address(this) });
         }
@@ -147,20 +158,45 @@ contract Escrow is Clonable, ReentrancyGuard, IEscrow {
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc IEscrow
-    function takeFundsFromUser(address user, uint256 amount) external override {
-        require(msg.sender == projectAllocationManager, "Escrow: Unauthorized");
-
+    function takeFundsFromUser(address user, uint256 amount) external override onlyPAM {
         TEscrow.UserInfo storage _user = userInfo[user];
-        if (_user.balance < amount) revert Errors.LaunchpadV3_Escrow_InsufficientBalance();
 
-        if (_user.optStatus == TCommon.OptStatus.OptIn) {
-            uint256 _redeemed = vault.redeem(amount, address(this), address(this));
-            usdc.safeTransfer(msg.sender, _redeemed);
-        } else {
-            usdc.safeTransfer(msg.sender, amount);
+        // Check: Balance must be sufficient
+        if (_user.balance < amount) {
+            revert Errors.LaunchpadV3_Escrow_InsufficientBalance(_user.balance, _user.optStatus);
         }
 
+        // Effect: Update user state
         _user.balance -= amount;
+
+        // Interaction: Send DynUSDC or USDC
+        // If opt-in, send DynUSDC
+        if (_user.optStatus == TCommon.OptStatus.OptIn) {
+            vault.safeTransfer(_msgSender(), amount);
+        } else {
+            // If opt-out, send USDC
+            usdc.safeTransfer(_msgSender(), amount);
+        }
+
         emit FundsTaken(user, amount);
+    }
+
+    /// @inheritdoc IEscrow
+    function refundFundsToUser(address user, uint256 amount) external override onlyPAM {
+        TEscrow.UserInfo storage _user = userInfo[user];
+
+        // Effect: Update user state
+        _user.balance += amount;
+
+        // Interaction: Send DynUSDC or USDC
+        // If opt-in, take DynUSDC
+        if (_user.optStatus == TCommon.OptStatus.OptIn) {
+            vault.safeTransferFrom(projectAllocationManager, address(this), amount);
+        } else {
+            // If opt-out, take USDC
+            usdc.safeTransferFrom(projectAllocationManager, address(this), amount);
+        }
+
+        emit FundsRefunded(user, amount);
     }
 }

@@ -17,6 +17,8 @@ library Errors {
     /// @notice Error when the user has not opted in.
     error LaunchpadV3_UserNotOptedIn();
 
+    error LaunchpadV3_Unauthorized();
+
     /*//////////////////////////////////////////////////////////////
                             ADDRESS LIBRARY 
     //////////////////////////////////////////////////////////////*/
