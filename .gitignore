@@ -41,7 +41,7 @@ build
 artifacts
 cache
 .deps
-types
+typechain-types
 cache
 dodoc
 
